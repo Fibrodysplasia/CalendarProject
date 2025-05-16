@@ -55,8 +55,8 @@
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 11F));
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 11F));
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 11F));
-            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 11.5F));
-            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 11.5F));
+            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13F));
+            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10F));
             tableLayoutPanel1.Controls.Add(addEventButton, 8, 0);
             tableLayoutPanel1.Controls.Add(label1, 0, 1);
             tableLayoutPanel1.Controls.Add(label2, 1, 1);
@@ -96,6 +96,21 @@
             addEventButton.TabIndex = 13;
             addEventButton.Text = "+";
             addEventButton.UseVisualStyleBackColor = false;
+            addEventButton.Click += AddEventButton_Click;
+            // 
+            // createMeetingButton
+            // 
+            createMeetingButton = new Button();
+            createMeetingButton.BackColor = Color.LightSalmon;
+            createMeetingButton.Dock = DockStyle.Right;
+            createMeetingButton.Font = new Font("Arial Rounded MT Bold", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            createMeetingButton.Location = new Point(675, 3);   // left of addEventButton
+            createMeetingButton.Name = "createMeetingButton";
+            createMeetingButton.Size = new Size(50, 31);
+            createMeetingButton.TabIndex = 14;
+            createMeetingButton.Text = "📅";    // Calendar emoji
+            createMeetingButton.UseVisualStyleBackColor = false;
+            createMeetingButton.Click += createMeetingButton_Click;
             // 
             // label1
             // 
@@ -223,8 +238,8 @@
             // EventPanel
             // 
             tableLayoutPanel1.SetColumnSpan(EventPanel, 2);
-            EventPanel.Location = new Point(625, 40);
-            EventPanel.Margin = new Padding(30, 3, 3, 3);
+            EventPanel.Location = new Point(620, 40);
+            EventPanel.Margin = new Padding(25, 3, 3, 3);
             EventPanel.Name = "EventPanel";
             tableLayoutPanel1.SetRowSpan(EventPanel, 7);
             EventPanel.Size = new Size(148, 461);
@@ -234,11 +249,11 @@
             // 
             label9.BackColor = Color.AliceBlue;
             label9.Dock = DockStyle.Left;
-            label9.Font = new Font("Arial Rounded MT Bold", 9F);
-            label9.Location = new Point(625, 0);
-            label9.Margin = new Padding(30, 0, 3, 0);
+            label9.Font = new Font("Arial Rounded MT Bold", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            label9.Location = new Point(620, 0);
+            label9.Margin = new Padding(25, 0, 3, 0);
             label9.Name = "label9";
-            label9.Size = new Size(56, 37);
+            label9.Size = new Size(64, 37);
             label9.TabIndex = 11;
             label9.Text = "Events";
             label9.TextAlign = ContentAlignment.MiddleCenter;
@@ -258,6 +273,12 @@
             ResumeLayout(false);
         }
 
+        private void AddEventButton_Click(object sender, EventArgs e)
+        {
+            // need to move this logic here
+            AddEvent_Click();
+        }
+
         #endregion
 
         private TableLayoutPanel tableLayoutPanel1;
@@ -274,5 +295,6 @@
         private Panel EventPanel;
         private Label label9;
         private Button addEventButton;
+        private Button createMeetingButton;
     }
 }
