@@ -30,17 +30,5 @@ namespace CalendarProject
             StartTime = startTime;
             EndTime = endTime;
         }
-
-        // check conflicts
-        public bool ConflictsWith(Event otherEvent)
-        {
-            return StartTime < otherEvent.EndTime && EndTime > otherEvent.StartTime;
-        }
-
-        // info
-        public override string ToString()
-        {
-            return $"{Title} - {StartTime:g} to {EndTime:g}";
-        }
     }
 }

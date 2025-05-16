@@ -1,5 +1,5 @@
 using System;
-using System.Security.AccessControl;
+using System.Collections.Generic;
 using System.Windows.Forms;
 
 namespace CalendarProject
@@ -100,19 +100,15 @@ namespace CalendarProject
         private System.Windows.Forms.Label lblTitle;
 
         // test users/events
-        private List<User> users = new List<User>();
-        private List<Event> events = new List<Event>();
-
         private void WelcomeScreen_Load(object sender, EventArgs e)
         {
             User john = new User("John", "Doe", "password1");
             User jane = new User("Jane", "Smith", "password2");
             User manager = new User("Joe", "Shmoe", "manager3");
             manager.IsManager = true;
-
-            users.Add(john);
-            users.Add(jane);
-            users.Add(manager);
+            User.AddUser(john);
+            User.AddUser(jane);
+            User.AddUser(manager);
 
             // John's events
             Event johnEvent1 = new Event(
@@ -161,21 +157,20 @@ namespace CalendarProject
             );
 
             // Add all events
-            events.Add(johnEvent1);
-            events.Add(johnEvent2);
-            events.Add(janeEvent);
-            events.Add(managerEvent);
-            events.Add(teamMeeting);
+            john.AddEvent(johnEvent1);
+            john.AddEvent(johnEvent2);
+            john.AddEvent(teamMeeting);
 
-            john.Calendar.Add(johnEvent1);
-            john.Calendar.Add(johnEvent2);
-            john.Calendar.Add(teamMeeting);
+            jane.AddEvent(janeEvent);
+            jane.AddEvent(teamMeeting);
 
-            jane.Calendar.Add(janeEvent);
-            jane.Calendar.Add(teamMeeting);
+            manager.AddEvent(managerEvent);
+            manager.AddEvent(teamMeeting);
 
-            manager.Calendar.Add(managerEvent);
-            manager.Calendar.Add(teamMeeting);
+            // debugging
+            Console.WriteLine($"Created {john.Calendar.Count} events for {john.Username}");
+            Console.WriteLine($"Created {jane.Calendar.Count} events for {jane.Username}");
+            Console.WriteLine($"Created {manager.Calendar.Count} events for {manager.Username}");
         }
 
         private void btnLogin_Click(object sender, EventArgs e)
@@ -183,33 +178,33 @@ namespace CalendarProject
             string username = txtUsername.Text.Trim();
             string password = txtPassword.Text;
 
-            User authenticatedUser = AuthenticateUser(username, password);
+            User authenticatedUser = User.Login(username, password);
 
             if (authenticatedUser != null)
             {
-                // success
-                this.Hide();
+                // more debugging
+                Console.WriteLine($"User {authenticatedUser.Username} logged in successfully");
+                Console.WriteLine($"Is manager: {authenticatedUser.IsManager}");
 
+                // hide form and show calendar
+                this.Hide();
                 CalendarView calendarView = new CalendarView(authenticatedUser);
-                calendarView.FormClosed += (s, args) => this.Close();
+
+                calendarView.FormClosed += (s, args) => {
+                    // log out when the form is closed
+                    authenticatedUser.Logout();
+                    this.Close();
+                };
+
                 calendarView.Show();
             }
             else
             {
                 // failed
-                MessageBox.Show("Login failed. Please try again.", "Error",
-                               MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Login failed. Please try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 txtPassword.Clear();
                 txtPassword.Focus();
             }
-        }
-
-        private User AuthenticateUser(string username, string password)
-        {
-            // find user
-            return users.FirstOrDefault(u =>
-                u.Username.Equals(username, StringComparison.OrdinalIgnoreCase) &&
-                u.Password == password);
         }
     }
 }

@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CalendarProject
 {
@@ -26,21 +27,10 @@ namespace CalendarProject
         // generate calendar when the form loads
         private void CalendarView_Load(object sender, EventArgs e)
         {
-            // title
             this.Text = $"Calendar - {currentUser.FullName}";
-
-            // show/hide manager controls
-            if (currentUser.IsManager)
-            {
-                createMeetingButton.Visible = true;
-            }
-            else
-            {
-                createMeetingButton.Visible = false;
-            }
-
             InitializeCalendar();
             GenerateCalendar(currentYear, currentMonth);
+            DisplayMonthEvents();
         }
 
         private void InitializeCalendar()
@@ -198,8 +188,7 @@ namespace CalendarProject
 
             // update and display
             eventArea.Controls.Clear();
-
-            List<Event> dayEvents = GetEventsForDay(date);
+            List<Event> dayEvents = currentUser.GetEventsByDate(date);
 
             int yPosition = 0;
             foreach (Event evt in dayEvents)
@@ -227,23 +216,12 @@ namespace CalendarProject
         // Get events for specific day
         private List<Event> GetEventsForDay(DateTime date)
         {
-            if (currentUser == null || currentUser.Calendar == null)
+            if (currentUser == null)
                 return new List<Event>();
-
-            List<Event> dayEvents = new List<Event>();
-
-            foreach (Event evt in currentUser.Calendar)
-            {
-                if (evt.StartTime.Date <= date.Date && evt.EndTime.Date >= date.Date)
-                {
-                    dayEvents.Add(evt);
-                }
-            }
-
-            return dayEvents;
+            return currentUser.GetEventsByDate(date);
         }
 
-        // handleevent label click
+        // handle event label click
         private void EventLabel_Click(object sender, EventArgs e)
         {
             Label eventLabel = sender as Label;
@@ -253,24 +231,263 @@ namespace CalendarProject
                 ShowEventDetails(selectedEvent);
             }
         }
-
-        // event details
         private void ShowEventDetails(Event selectedEvent)
         {
-            string eventType = selectedEvent is Meeting ? "Meeting" : "Event";
-            string details = $"{eventType}: {selectedEvent.Title}\n" +
-                            $"Date: {selectedEvent.StartTime.ToShortDateString()}\n" +
-                            $"Time: {selectedEvent.StartTime.ToShortTimeString()} - {selectedEvent.EndTime.ToShortTimeString()}\n" +
-                            $"Description: {selectedEvent.Description}";
-
-            if (selectedEvent is Meeting meeting)
+            // event details
+            using (Form detailsForm = new Form())
             {
-                details += $"\nOrganizer: {meeting.Organizer}\n" +
-                           $"Location: {meeting.Location}\n" +
-                           $"Attendees: {string.Join(", ", meeting.Attendees)}";
-            }
+                detailsForm.Text = "Event Details";
+                detailsForm.Width = 400;
+                detailsForm.Height = 300;
+                detailsForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                detailsForm.MaximizeBox = false;
+                detailsForm.MinimizeBox = false;
+                detailsForm.StartPosition = FormStartPosition.CenterParent;
 
-            MessageBox.Show(details, "Event Details", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // icon
+                PictureBox iconBox = new PictureBox();
+                iconBox.Image = selectedEvent is Meeting ?
+                    SystemIcons.Information.ToBitmap() : SystemIcons.Application.ToBitmap();
+                iconBox.SizeMode = PictureBoxSizeMode.StretchImage;
+                iconBox.Size = new Size(32, 32);
+                iconBox.Location = new Point(20, 20);
+
+                Label lblDetails = new Label();
+                string eventType = selectedEvent is Meeting ? "Meeting" : "Event";
+                lblDetails.Text = $"{eventType}: {selectedEvent.Title}\n" +
+                                 $"Date: {selectedEvent.StartTime.ToShortDateString()}\n" +
+                                 $"Time: {selectedEvent.StartTime.ToShortTimeString()} - {selectedEvent.EndTime.ToShortTimeString()}\n" +
+                                 $"Description: {selectedEvent.Description}";
+
+                if (selectedEvent is Meeting meeting)
+                {
+                    lblDetails.Text += $"\nOrganizer: {meeting.Organizer}\n" +
+                                      $"Location: {meeting.Location}\n" +
+                                      $"Attendees: {string.Join(", ", meeting.Attendees)}";
+                }
+
+                lblDetails.Location = new Point(60, 20);
+                lblDetails.Size = new Size(320, 180);
+                lblDetails.AutoSize = false;
+
+                // OK
+                Button btnOK = new Button();
+                btnOK.Text = "OK";
+                btnOK.DialogResult = DialogResult.OK;
+                btnOK.Size = new Size(80, 30);
+                btnOK.Location = new Point(300, 220);
+
+                // Edit
+                Button btnEdit = new Button();
+                btnEdit.Text = "Edit";
+                btnEdit.Size = new Size(80, 30);
+                btnEdit.Location = new Point(120, 220);
+                btnEdit.Click += (s, e) =>
+                {
+                    detailsForm.DialogResult = DialogResult.Yes;
+                };
+
+                // Delete
+                Button btnDelete = new Button();
+                btnDelete.Text = "Delete";
+                btnDelete.Size = new Size(80, 30);
+                btnDelete.Location = new Point(210, 220);
+                btnDelete.Click += (s, e) =>
+                {
+                    // get confirmation
+                    if (MessageBox.Show(
+                        "Are you sure you want to delete this event?",
+                        "Confirm Delete",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning) == DialogResult.Yes)
+                    {
+                        detailsForm.DialogResult = DialogResult.No;
+                    }
+                };
+
+                // add all controls
+                detailsForm.Controls.Add(iconBox);
+                detailsForm.Controls.Add(lblDetails);
+                detailsForm.Controls.Add(btnOK);
+                detailsForm.Controls.Add(btnEdit);
+                detailsForm.Controls.Add(btnDelete);
+
+                detailsForm.AcceptButton = btnOK;
+
+                DialogResult result = detailsForm.ShowDialog();
+
+                if (result == DialogResult.Yes) // Edit
+                {
+                    EditEvent(selectedEvent);
+                }
+                else if (result == DialogResult.No) // Delete (I know it's stupid idk what to do)
+                {
+                    DeleteEvent(selectedEvent);
+                }
+            }
+        }
+        private void EditEvent(Event eventToEdit)
+        {
+            using (Form editForm = new Form())
+            {
+                editForm.Width = 300;
+                editForm.Height = 400;
+                editForm.Text = "Edit Event";
+
+                // Title
+                Label lblTitle = new Label() { Left = 20, Top = 20, Text = "Event Title:" };
+                TextBox txtTitle = new TextBox()
+                {
+                    Left = 20,
+                    Top = 40,
+                    Width = 240,
+                    Text = eventToEdit.Title
+                };
+
+                // Description
+                Label lblDescription = new Label() { Left = 20, Top = 70, Text = "Description:" };
+                TextBox txtDescription = new TextBox()
+                {
+                    Left = 20,
+                    Top = 90,
+                    Width = 240,
+                    Height = 60,
+                    Multiline = true,
+                    ScrollBars = ScrollBars.Vertical,
+                    Text = eventToEdit.Description
+                };
+
+                // Date picker
+                Label lblDate = new Label() { Left = 20, Top = 160, Text = "Date:" };
+                DateTimePicker dtpDate = new DateTimePicker()
+                {
+                    Left = 20,
+                    Top = 180,
+                    Width = 240,
+                    Format = DateTimePickerFormat.Short,
+                    Value = eventToEdit.StartTime.Date
+                };
+
+                // Start time
+                Label lblStartTime = new Label() { Left = 20, Top = 210, Text = "Start Time:" };
+                DateTimePicker dtpStartTime = new DateTimePicker()
+                {
+                    Left = 20,
+                    Top = 230,
+                    Width = 240,
+                    Format = DateTimePickerFormat.Time,
+                    ShowUpDown = true,
+                    Value = eventToEdit.StartTime
+                };
+
+                // End time
+                Label lblEndTime = new Label() { Left = 20, Top = 260, Text = "End Time:" };
+                DateTimePicker dtpEndTime = new DateTimePicker()
+                {
+                    Left = 20,
+                    Top = 280,
+                    Width = 240,
+                    Format = DateTimePickerFormat.Time,
+                    ShowUpDown = true,
+                    Value = eventToEdit.EndTime
+                };
+
+                // Buttons
+                Button btnSave = new Button() { Text = "Save", Left = 20, Top = 320, Width = 100 };
+                Button btnCancel = new Button() { Text = "Cancel", Left = 160, Top = 320, Width = 100 };
+
+                // Validation and update
+                btnSave.Click += (s, args) =>
+                {
+                    if (string.IsNullOrWhiteSpace(txtTitle.Text))
+                    {
+                        MessageBox.Show("Event title is required", "Missing Title",
+                                       MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    if (dtpEndTime.Value.TimeOfDay <= dtpStartTime.Value.TimeOfDay)
+                    {
+                        MessageBox.Show("End time must be after start time", "Invalid Times",
+                                       MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    editForm.DialogResult = DialogResult.OK;
+                };
+
+                btnCancel.Click += (s, args) => { editForm.DialogResult = DialogResult.Cancel; };
+
+                // Add all controls to form
+                editForm.Controls.Add(lblTitle);
+                editForm.Controls.Add(txtTitle);
+                editForm.Controls.Add(lblDescription);
+                editForm.Controls.Add(txtDescription);
+                editForm.Controls.Add(lblDate);
+                editForm.Controls.Add(dtpDate);
+                editForm.Controls.Add(lblStartTime);
+                editForm.Controls.Add(dtpStartTime);
+                editForm.Controls.Add(lblEndTime);
+                editForm.Controls.Add(dtpEndTime);
+                editForm.Controls.Add(btnSave);
+                editForm.Controls.Add(btnCancel);
+
+                editForm.AcceptButton = btnSave;
+                editForm.CancelButton = btnCancel;
+
+                if (editForm.ShowDialog() == DialogResult.OK)
+                {
+                    // copy the event to check for conflicts
+                    Event updatedEvent = new Event(
+                        txtTitle.Text,
+                        dtpDate.Value.Date.Add(dtpStartTime.Value.TimeOfDay),
+                        dtpDate.Value.Date.Add(dtpEndTime.Value.TimeOfDay),
+                        txtDescription.Text
+                    );
+                    updatedEvent.Id = eventToEdit.Id;
+                    updatedEvent.Owner = eventToEdit.Owner;
+                    bool updated = false;
+
+                    // remove old
+                    if (currentUser.DeleteEvent(eventToEdit))
+                    {
+                        // add new
+                        updated = currentUser.AddEvent(updatedEvent);
+                    }
+
+                    if (updated)
+                    {
+                        MessageBox.Show($"Event '{updatedEvent.Title}' updated",
+                                      "Event Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Failed to update event. There may be a scheduling conflict.",
+                                      "Update Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+
+                    // Refresh calendar
+                    GenerateCalendar(currentYear, currentMonth);
+                    DisplayMonthEvents();
+                }
+            }
+        }
+
+        private void DeleteEvent(Event eventToDelete)
+        {
+            if (currentUser.DeleteEvent(eventToDelete))
+            {
+                GenerateCalendar(currentYear, currentMonth);
+                DisplayMonthEvents();
+
+                MessageBox.Show($"Event '{eventToDelete.Title}' deleted",
+                               "Event Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show("Failed to delete the event",
+                               "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         // handle day cell click event
@@ -301,7 +518,6 @@ namespace CalendarProject
             }
         }
 
-        // Show menu
         private void ShowDayMenu()
         {
             ContextMenuStrip dayMenu = new ContextMenuStrip();
@@ -340,43 +556,43 @@ namespace CalendarProject
                 inputForm.Width = 300;
                 inputForm.Height = 400;
                 inputForm.Text = "New Event";
-                
-                Label lblTitle = new Label() 
-                { 
-                    Left = 20, 
-                    Top = 20, 
-                    Text = "Event Title:" 
+
+                Label lblTitle = new Label()
+                {
+                    Left = 20,
+                    Top = 20,
+                    Text = "Event Title:"
                 };
 
-                TextBox txtTitle = new TextBox() 
-                { 
-                    Left = 20, 
-                    Top = 40, 
-                    Width = 240 
+                TextBox txtTitle = new TextBox()
+                {
+                    Left = 20,
+                    Top = 40,
+                    Width = 240
                 };
 
-                Label lblDescription = new Label() 
-                { 
-                    Left = 20, 
-                    Top = 70, 
-                    Text = "Description:" 
+                Label lblDescription = new Label()
+                {
+                    Left = 20,
+                    Top = 70,
+                    Text = "Description:"
                 };
 
-                TextBox txtDescription = new TextBox() 
-                { 
-                    Left = 20, 
-                    Top = 90, 
-                    Width = 240,                     
+                TextBox txtDescription = new TextBox()
+                {
+                    Left = 20,
+                    Top = 90,
+                    Width = 240,
                     Height = 60,
                     Multiline = true,
-                    ScrollBars = ScrollBars.Vertical 
+                    ScrollBars = ScrollBars.Vertical
                 };
 
-                Label lblDate = new Label() 
-                { 
-                    Left = 20, 
-                    Top = 160, 
-                    Text = "Date:" 
+                Label lblDate = new Label()
+                {
+                    Left = 20,
+                    Top = 160,
+                    Text = "Date:"
                 };
 
                 DateTimePicker dtpDate = new DateTimePicker()
@@ -393,54 +609,55 @@ namespace CalendarProject
                     dtpDate.Value = (DateTime)selectedDayCell.Tag;
                 }
 
-                Label lblStartTime = new Label() 
-                { 
-                    Left = 20, 
-                    Top = 210, 
-                    Text = "Start Time:" 
+                Label lblStartTime = new Label()
+                {
+                    Left = 20,
+                    Top = 210,
+                    Text = "Start Time:"
                 };
 
-                DateTimePicker dtpStartTime = new DateTimePicker() 
-                { 
-                    Left = 20, 
-                    Top = 230, 
-                    Width = 240, 
-                    Format = DateTimePickerFormat.Time, 
-                    ShowUpDown = true 
+                DateTimePicker dtpStartTime = new DateTimePicker()
+                {
+                    Left = 20,
+                    Top = 230,
+                    Width = 240,
+                    Format = DateTimePickerFormat.Time,
+                    ShowUpDown = true
                 };
                 dtpStartTime.Value = DateTime.Today.AddHours(9); //default 9am start
 
-                Label lblEndTime = new Label() 
-                { 
-                    Left = 20, 
-                    Top = 260, 
-                    Text = "End Time:" 
+                Label lblEndTime = new Label()
+                {
+                    Left = 20,
+                    Top = 260,
+                    Text = "End Time:"
                 };
-                DateTimePicker dtpEndTime = new DateTimePicker() 
-                { 
-                    Left = 20, 
-                    Top = 280, 
-                    Width = 240, 
-                    Format = DateTimePickerFormat.Time, 
-                    ShowUpDown = true 
+                DateTimePicker dtpEndTime = new DateTimePicker()
+                {
+                    Left = 20,
+                    Top = 280,
+                    Width = 240,
+                    Format = DateTimePickerFormat.Time,
+                    ShowUpDown = true
                 };
                 dtpEndTime.Value = DateTime.Today.AddHours(10); //default 10am end
 
-                Button btnCreate = new Button() 
-                { 
-                    Text = "Create", 
-                    Left = 20, 
-                    Top = 320, 
-                    Width = 100 
+                Button btnCreate = new Button()
+                {
+                    Text = "Create",
+                    Left = 20,
+                    Top = 320,
+                    Width = 100
                 };
-                Button btnCancel = new Button() 
-                { 
-                    Text = "Cancel", 
-                    Left = 160, 
-                    Top = 320, 
-                    Width = 100 
+                Button btnCancel = new Button()
+                {
+                    Text = "Cancel",
+                    Left = 160,
+                    Top = 320,
+                    Width = 100
                 };
-                btnCreate.Click += (s, args) => {
+                btnCreate.Click += (s, args) =>
+                {
                     // validation!
                     if (string.IsNullOrWhiteSpace(txtTitle.Text))
                     {
@@ -504,13 +721,21 @@ namespace CalendarProject
                         description
                     );
                     newEvent.Owner = currentUser.Username;
+                    bool added = currentUser.AddEvent(newEvent);
 
-                    currentUser.Calendar.Add(newEvent);
+                    if (added)
+                    {
+                        GenerateCalendar(currentYear, currentMonth);
+                        DisplayMonthEvents();
 
-                    // trying to refresh the cell of the date of the event
-                    // was causing a bunch of out-of-reference/null object errors
-                    // refreshing the whol calendar seems to work fine
-                    GenerateCalendar(currentYear, currentMonth);
+                        MessageBox.Show($"Event '{title}' created for {eventDate.ToShortDateString()}",
+                                      "Event Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Failed to add event. There may be a scheduling conflict.",
+                                      "Add Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
         }
@@ -538,6 +763,7 @@ namespace CalendarProject
                 currentYear--;
             }
             GenerateCalendar(currentYear, currentMonth);
+            DisplayMonthEvents();
         }
 
         public void NextMonth()
@@ -549,14 +775,7 @@ namespace CalendarProject
                 currentYear++;
             }
             GenerateCalendar(currentYear, currentMonth);
-        }
-
-        // go to specific month/year
-        public void GoToDate(int year, int month)
-        {
-            currentYear = year;
-            currentMonth = month;
-            GenerateCalendar(currentYear, currentMonth);
+            DisplayMonthEvents();
         }
 
         // handlers for month navigation
@@ -579,65 +798,348 @@ namespace CalendarProject
                 return;
             }
 
-            // TODO: Fix generic form
-            using (Form meetingForm = new Form())
+            // Step 1: Select Date
+            using (Form dateSelectionForm = new Form())
             {
-                meetingForm.Width = 300;
-                meetingForm.Height = 200;
-                meetingForm.Text = "Create Meeting";
+                dateSelectionForm.Width = 350;
+                dateSelectionForm.Height = 200;
+                dateSelectionForm.Text = "Select Meeting Date";
+                dateSelectionForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dateSelectionForm.StartPosition = FormStartPosition.CenterParent;
+                dateSelectionForm.MaximizeBox = false;
+                dateSelectionForm.MinimizeBox = false;
 
-                Label lblTitle = new Label() { Left = 20, Top = 20, Text = "Meeting Title:" };
-                TextBox txtTitle = new TextBox() { Left = 20, Top = 40, Width = 240 };
+                Label lblInstructions = new Label();
+                lblInstructions.Text = "Please select a date for the meeting:";
+                lblInstructions.Location = new Point(20, 20);
+                lblInstructions.AutoSize = true;
 
-                Label lblAttendees = new Label() { Left = 20, Top = 70, Text = "Attendees (comma separated):" };
-                TextBox txtAttendees = new TextBox() { Left = 20, Top = 90, Width = 240 };
+                // Date picker
+                DateTimePicker dtpMeetingDate = new DateTimePicker();
+                dtpMeetingDate.Location = new Point(20, 50);
+                dtpMeetingDate.Width = 300;
+                dtpMeetingDate.Format = DateTimePickerFormat.Short;
+                dtpMeetingDate.Value = DateTime.Now.Date.AddDays(1); // Default to tomorrow
 
-                Button btnCreate = new Button() { Text = "Create", Left = 20, Top = 130, Width = 100 };
-                Button btnCancel = new Button() { Text = "Cancel", Left = 160, Top = 130, Width = 100 };
+                // Buttons
+                Button btnNext = new Button();
+                Button btnCancel = new Button();
+                btnNext.Text = "Next";
+                btnCancel.Text = "Cancel";
+                btnNext.Location = new Point(130, 100);
+                btnCancel.Location = new Point(230, 100);
+                btnNext.Width = 80;
+                btnCancel.Width = 80;
+                btnNext.DialogResult = DialogResult.OK;
+                btnCancel.DialogResult = DialogResult.Cancel;
 
-                btnCreate.Click += (s, e) => { meetingForm.DialogResult = DialogResult.OK; };
-                btnCancel.Click += (s, e) => { meetingForm.DialogResult = DialogResult.Cancel; };
+                // Add controls
+                dateSelectionForm.Controls.Add(lblInstructions);
+                dateSelectionForm.Controls.Add(dtpMeetingDate);
+                dateSelectionForm.Controls.Add(btnNext);
+                dateSelectionForm.Controls.Add(btnCancel);
 
-                meetingForm.Controls.Add(lblTitle);
-                meetingForm.Controls.Add(txtTitle);
-                meetingForm.Controls.Add(lblAttendees);
-                meetingForm.Controls.Add(txtAttendees);
-                meetingForm.Controls.Add(btnCreate);
-                meetingForm.Controls.Add(btnCancel);
+                dateSelectionForm.AcceptButton = btnNext;
+                dateSelectionForm.CancelButton = btnCancel;
 
-                meetingForm.AcceptButton = btnCreate;
-                meetingForm.CancelButton = btnCancel;
+                // date selection form
+                if (dateSelectionForm.ShowDialog() != DialogResult.OK)
+                    return;
 
-                if (meetingForm.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(txtTitle.Text))
+                // Get date
+                DateTime meetingDate = dtpMeetingDate.Value.Date;
+
+                // Step 2: Select Users
+                List<User> selectedUsers = new List<User>();
+
+                using (Form userSelectionForm = new Form())
                 {
-                    // Get attendee usernames
-                    List<string> attendees = new List<string>();
-                    string[] attendeeNames = txtAttendees.Text.Split(',');
-                    foreach (string name in attendeeNames)
+                    userSelectionForm.Width = 400;
+                    userSelectionForm.Height = 300;
+                    userSelectionForm.Text = "Select Meeting Attendees";
+                    userSelectionForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                    userSelectionForm.StartPosition = FormStartPosition.CenterParent;
+                    userSelectionForm.MaximizeBox = false;
+                    userSelectionForm.MinimizeBox = false;
+
+                    Label lblUserInstructions = new Label();
+                    lblUserInstructions.Text = "Select users to invite to the meeting:";
+                    lblUserInstructions.Location = new Point(20, 20);
+                    lblUserInstructions.AutoSize = true;
+
+                    List<User> users = User.GetAllUsers();
+
+                    // Create checklist
+                    CheckedListBox clbUsers = new CheckedListBox();
+                    clbUsers.Location = new Point(20, 50);
+                    clbUsers.Width = 350;
+                    clbUsers.Height = 150;
+
+                    // I initialized this 'in' the for loop 
+                    // and it took forever to realize what was
+                    // broke
+                    Dictionary<string, User> userDictionary = new Dictionary<string, User>();
+                    clbUsers.Tag = userDictionary;
+
+                    foreach (User user in users)
                     {
-                        if (!string.IsNullOrWhiteSpace(name))
+                        if (user.Username != currentUser.Username)
                         {
-                            attendees.Add(name.Trim().ToLower());
+                            // pretty name instead of object displayed
+                            string displayName = $"{user.FirstName} {user.LastName} ({user.Username})";
+                            clbUsers.Items.Add(displayName, false);
+                            ((Dictionary<string, User>)clbUsers.Tag)[displayName] = user;
                         }
                     }
 
-                    // create new meeting
-                    Meeting newMeeting = new Meeting(
-                        txtTitle.Text,
-                        DateTime.Now.Date.AddDays(1).AddHours(10), // Tomorrow at 10 AM
-                        DateTime.Now.Date.AddDays(1).AddHours(11), // Tomorrow at 11 AM
-                        currentUser.Username,
-                        attendees,
-                        "Conference Room A",
-                        "Meeting organized by " + currentUser.FullName
-                    );
+                    // Buttons
+                    Button btnFindSlots = new Button();
+                    Button btnCancelUsers = new Button();
+                    btnFindSlots.Text = "Find Available Times";
+                    btnCancelUsers.Text = "Cancel";
+                    btnFindSlots.Location = new Point(140, 220);
+                    btnCancelUsers.Location = new Point(280, 220);
+                    btnFindSlots.Width = 130;
+                    btnCancelUsers.Width = 80;
+                    btnFindSlots.DialogResult = DialogResult.OK;
+                    btnCancelUsers.DialogResult = DialogResult.Cancel;
 
-                    // add to calendar and refresh
-                    currentUser.Calendar.Add(newMeeting);
-                    GenerateCalendar(currentYear, currentMonth);
+                    // Add controls
+                    userSelectionForm.Controls.Add(lblUserInstructions);
+                    userSelectionForm.Controls.Add(clbUsers);
+                    userSelectionForm.Controls.Add(btnFindSlots);
+                    userSelectionForm.Controls.Add(btnCancelUsers);
 
-                    MessageBox.Show("Meeting created successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    userSelectionForm.AcceptButton = btnFindSlots;
+                    userSelectionForm.CancelButton = btnCancelUsers;
+
+                    // user selection form
+                    if (userSelectionForm.ShowDialog() != DialogResult.OK)
+                        return;
+
+                    // Get selected users
+                    foreach (object item in clbUsers.CheckedItems)
+                    {
+                        string displayName = item.ToString();
+                        if (clbUsers.Tag != null && ((Dictionary<string, User>)clbUsers.Tag).ContainsKey(displayName))
+                        {
+                            User selectedUser = ((Dictionary<string, User>)clbUsers.Tag)[displayName];
+                            selectedUsers.Add(selectedUser);
+                        }
+                    }
                 }
+
+                // can't have a meeting with nobody
+                if (selectedUsers.Count == 0)
+                {
+                    MessageBox.Show("No users were selected. Meeting creation cancelled.",
+                                   "No Attendees", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Step 3: Find available time slots
+                TimeSpan meetingDuration = TimeSpan.FromHours(1);
+                List<DateTime> availableSlots = currentUser.FindAvailableMeetingSlots(meetingDate, meetingDuration, selectedUsers);
+
+                if (availableSlots.Count == 0)
+                {
+                    MessageBox.Show("No available time slots were found for the selected date and attendees.",
+                                   "No Available Slots", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                using (Form timeSlotForm = new Form())
+                {
+                    timeSlotForm.Width = 400;
+                    timeSlotForm.Height = 350;
+                    timeSlotForm.Text = "Select Meeting Time";
+                    timeSlotForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                    timeSlotForm.StartPosition = FormStartPosition.CenterParent;
+                    timeSlotForm.MaximizeBox = false;
+                    timeSlotForm.MinimizeBox = false;
+
+                    Label lblSlotInstructions = new Label();
+                    lblSlotInstructions.Text = "Available time slots:";
+                    lblSlotInstructions.Location = new Point(20, 20);
+                    lblSlotInstructions.AutoSize = true;
+
+                    ListBox lbTimeSlots = new ListBox();
+                    lbTimeSlots.Location = new Point(20, 50);
+                    lbTimeSlots.Width = 350;
+                    lbTimeSlots.Height = 180;
+
+                    foreach (DateTime slot in availableSlots)
+                    {
+                        lbTimeSlots.Items.Add($"{slot.ToShortTimeString()} - {slot.AddHours(1).ToShortTimeString()}");
+                    }
+
+                    // Title
+                    Label lblTitle = new Label();
+                    lblTitle.Text = "Meeting Title:";
+                    lblTitle.Location = new Point(20, 240);
+                    lblTitle.AutoSize = true;
+
+                    TextBox txtTitle = new TextBox();
+                    txtTitle.Location = new Point(110, 237);
+                    txtTitle.Width = 260;
+
+                    // Buttons
+                    Button btnCreateMeeting = new Button();
+                    Button btnCancelMeeting = new Button();
+                    btnCreateMeeting.Text = "Create Meeting";
+                    btnCancelMeeting.Text = "Cancel";
+                    btnCreateMeeting.Location = new Point(170, 270);
+                    btnCancelMeeting.Location = new Point(290, 270);
+                    btnCreateMeeting.Width = 110;
+                    btnCancelMeeting.Width = 80;
+                    btnCreateMeeting.Click += (s, args) =>
+                    {
+                        if (lbTimeSlots.SelectedIndex < 0)
+                        {
+                            MessageBox.Show("Please select a time slot.", "No Time Selected",
+                                          MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+
+                        if (string.IsNullOrWhiteSpace(txtTitle.Text))
+                        {
+                            MessageBox.Show("Please enter a meeting title.", "No Title",
+                                          MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+
+                        timeSlotForm.DialogResult = DialogResult.OK;
+                    };
+                    btnCancelMeeting.DialogResult = DialogResult.Cancel;
+
+                    // Add controls
+                    timeSlotForm.Controls.Add(lblSlotInstructions);
+                    timeSlotForm.Controls.Add(lbTimeSlots);
+                    timeSlotForm.Controls.Add(lblTitle);
+                    timeSlotForm.Controls.Add(txtTitle);
+                    timeSlotForm.Controls.Add(btnCreateMeeting);
+                    timeSlotForm.Controls.Add(btnCancelMeeting);
+
+                    timeSlotForm.CancelButton = btnCancelMeeting;
+
+                    // time slot selection
+                    if (timeSlotForm.ShowDialog() != DialogResult.OK)
+                        return;
+
+                    // Get time slot and create the meeting
+                    if (lbTimeSlots.SelectedIndex >= 0)
+                    {
+                        DateTime selectedSlot = availableSlots[lbTimeSlots.SelectedIndex];
+
+                        Meeting newMeeting = new Meeting(
+                            txtTitle.Text,
+                            selectedSlot,
+                            selectedSlot.AddHours(1),
+                            currentUser.Username,
+                            selectedUsers.Select(u => u.Username).ToList(),
+                            "Conference Room A",
+                            $"Meeting organized by {currentUser.FullName}"
+                        );
+
+                        // Add to everyone's calendars and refresh
+                        currentUser.AddEvent(newMeeting);
+                        foreach (User user in selectedUsers)
+                        {
+                            user.AddEvent(newMeeting);
+                        }
+                        GenerateCalendar(currentYear, currentMonth);
+                        DisplayMonthEvents();
+
+                        MessageBox.Show($"Meeting '{txtTitle.Text}' created successfully for {selectedSlot.ToShortDateString()} at {selectedSlot.ToShortTimeString()}.",
+                                      "Meeting Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+        }
+        private void DisplayMonthEvents()
+        {
+            // Clear the panel
+            eventPanel.Controls.Clear();
+
+            // Get events for the current month
+            List<Event> monthEvents = new List<Event>();
+            foreach (Event evt in currentUser.Calendar)
+            {
+                if (evt.StartTime.Year == currentYear && evt.StartTime.Month == currentMonth)
+                {
+                    monthEvents.Add(evt);
+                }
+            }
+
+            // Sort events
+            monthEvents = monthEvents.OrderBy(e => e.StartTime).ToList();
+
+            int yPosition = 5;
+            const int padding = 5;
+            const int eventHeight = 60;
+
+            foreach (Event evt in monthEvents)
+            {
+                // Create panels
+                Panel eventItemPanel = new Panel();
+                eventItemPanel.Width = eventPanel.Width - 25; // Allow for scrollbar
+                eventItemPanel.Height = eventHeight;
+                eventItemPanel.Location = new Point(5, yPosition);
+                eventItemPanel.BackColor = evt is Meeting ? Color.FromArgb(255, 128, 128) : Color.FromArgb(128, 191, 255);
+
+                Label lblDateTime = new Label();
+                lblDateTime.AutoSize = false;
+                lblDateTime.Width = eventItemPanel.Width - 10;
+                lblDateTime.Height = 20;
+                lblDateTime.Location = new Point(5, 5);
+                lblDateTime.Text = $"{evt.StartTime.ToShortDateString()} {evt.StartTime.ToShortTimeString()}";
+                lblDateTime.Font = new Font("Arial", 9, FontStyle.Bold);
+                lblDateTime.ForeColor = Color.Black;
+
+                // title
+                Label lblTitle = new Label();
+                lblTitle.AutoSize = false;
+                lblTitle.Width = eventItemPanel.Width - 10;
+                lblTitle.Height = 20;
+                lblTitle.Location = new Point(5, 25);
+                lblTitle.Text = evt.Title;
+                lblTitle.Font = new Font("Arial", 10, FontStyle.Regular);
+                lblTitle.ForeColor = Color.Black;
+
+                eventItemPanel.Tag = evt;
+                eventItemPanel.Click += EventItem_Click;
+                lblTitle.Click += EventItem_Click;
+                lblDateTime.Click += EventItem_Click;
+
+                eventItemPanel.Controls.Add(lblDateTime);
+                eventItemPanel.Controls.Add(lblTitle);
+
+                eventPanel.Controls.Add(eventItemPanel);
+
+                // update position for next event or overlaps
+                yPosition += eventHeight + padding;
+            }
+
+            Label headerLabel = eventPanel.Parent.Controls["eventsHeaderLabel"] as Label;
+            if (headerLabel != null)
+            {
+                headerLabel.Text = "Events";
+            }
+        }
+
+        // handle event item click
+        private void EventItem_Click(object sender, EventArgs e)
+        {
+            // Get clicked panel
+            Panel eventPanel = sender as Panel;
+            if (eventPanel == null && sender is Label label)
+            {
+                eventPanel = label.Parent as Panel;
+            }
+
+            if (eventPanel != null && eventPanel.Tag is Event selectedEvent)
+            {
+                ShowEventDetails(selectedEvent);
             }
         }
     }

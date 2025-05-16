@@ -23,26 +23,5 @@ namespace CalendarProject
             Attendees = attendees ?? new List<string>();
             Location = location;
         }
-
-        // add/remove attendees
-        public void AddAttendee(string username)
-        {
-            if (!Attendees.Contains(username))
-            {
-                Attendees.Add(username);
-            }
-        }
-        public bool RemoveAttendee(string username)
-        {
-            return Attendees.Remove(username);
-        }
-
-        // info
-        public override string ToString()
-        {
-            string baseInfo = base.ToString();
-            string attendeeList = string.Join(", ", Attendees);
-            return $"{baseInfo} | Location: {Location} | Organizer: {Organizer} | Attendees: {attendeeList}";
-        }
     }
 }

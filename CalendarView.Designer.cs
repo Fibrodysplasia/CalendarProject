@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             tableLayoutPanel1 = new TableLayoutPanel();
+            createMeetingButton = new Button();
             addEventButton = new Button();
             label1 = new Label();
             label2 = new Label();
@@ -40,14 +41,14 @@
             label8 = new Label();
             nextMonthButton = new Button();
             previousMonthButton = new Button();
-            EventPanel = new Panel();
             label9 = new Label();
+            eventPanel = new Panel();
             tableLayoutPanel1.SuspendLayout();
             SuspendLayout();
             // 
             // tableLayoutPanel1
             // 
-            tableLayoutPanel1.ColumnCount = 9;
+            tableLayoutPanel1.ColumnCount = 10;
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 11F));
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 11F));
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 11F));
@@ -56,8 +57,10 @@
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 11F));
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 11F));
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13F));
-            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10F));
-            tableLayoutPanel1.Controls.Add(addEventButton, 8, 0);
+            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 5F));
+            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 5F));
+            tableLayoutPanel1.Controls.Add(createMeetingButton, 8, 0);
+            tableLayoutPanel1.Controls.Add(addEventButton, 9, 0);
             tableLayoutPanel1.Controls.Add(label1, 0, 1);
             tableLayoutPanel1.Controls.Add(label2, 1, 1);
             tableLayoutPanel1.Controls.Add(label3, 2, 1);
@@ -68,49 +71,48 @@
             tableLayoutPanel1.Controls.Add(label8, 1, 0);
             tableLayoutPanel1.Controls.Add(nextMonthButton, 6, 0);
             tableLayoutPanel1.Controls.Add(previousMonthButton, 0, 0);
-            tableLayoutPanel1.Controls.Add(EventPanel, 7, 1);
             tableLayoutPanel1.Controls.Add(label9, 7, 0);
+            tableLayoutPanel1.Controls.Add(eventPanel, 7, 1);
             tableLayoutPanel1.GrowStyle = TableLayoutPanelGrowStyle.FixedSize;
             tableLayoutPanel1.Location = new Point(12, 12);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
             tableLayoutPanel1.RowCount = 8;
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 7.48502874F));
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 7.48502874F));
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716557F));
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716557F));
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716557F));
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716557F));
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716557F));
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716557F));
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 7.4850297F));
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 7.4850297F));
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716576F));
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716576F));
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716576F));
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716576F));
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716576F));
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 14.1716576F));
             tableLayoutPanel1.Size = new Size(776, 504);
             tableLayoutPanel1.TabIndex = 0;
+            // 
+            // createMeetingButton
+            // 
+            createMeetingButton.BackColor = Color.Azure;
+            createMeetingButton.Dock = DockStyle.Right;
+            createMeetingButton.Font = new Font("Arial Rounded MT Bold", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            createMeetingButton.Location = new Point(698, 3);
+            createMeetingButton.Name = "createMeetingButton";
+            createMeetingButton.Size = new Size(32, 31);
+            createMeetingButton.TabIndex = 14;
+            createMeetingButton.Text = "+M";
+            createMeetingButton.UseVisualStyleBackColor = false;
+            createMeetingButton.Click += createMeetingButton_Click;
             // 
             // addEventButton
             // 
             addEventButton.BackColor = Color.Azure;
             addEventButton.Dock = DockStyle.Right;
-            addEventButton.Font = new Font("Arial Rounded MT Bold", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            addEventButton.Location = new Point(730, 3);
+            addEventButton.Font = new Font("Arial Rounded MT Bold", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            addEventButton.Location = new Point(736, 3);
             addEventButton.Name = "addEventButton";
-            addEventButton.Size = new Size(43, 31);
+            addEventButton.Size = new Size(37, 31);
             addEventButton.TabIndex = 13;
-            addEventButton.Text = "+";
+            addEventButton.Text = "+E";
             addEventButton.UseVisualStyleBackColor = false;
             addEventButton.Click += AddEventButton_Click;
-            // 
-            // createMeetingButton
-            // 
-            createMeetingButton = new Button();
-            createMeetingButton.BackColor = Color.LightSalmon;
-            createMeetingButton.Dock = DockStyle.Right;
-            createMeetingButton.Font = new Font("Arial Rounded MT Bold", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            createMeetingButton.Location = new Point(675, 3);   // left of addEventButton
-            createMeetingButton.Name = "createMeetingButton";
-            createMeetingButton.Size = new Size(50, 31);
-            createMeetingButton.TabIndex = 14;
-            createMeetingButton.Text = "📅";    // Calendar emoji
-            createMeetingButton.UseVisualStyleBackColor = false;
-            createMeetingButton.Click += createMeetingButton_Click;
             // 
             // label1
             // 
@@ -235,16 +237,6 @@
             previousMonthButton.UseVisualStyleBackColor = false;
             previousMonthButton.Click += previousMonthButton_Click;
             // 
-            // EventPanel
-            // 
-            tableLayoutPanel1.SetColumnSpan(EventPanel, 2);
-            EventPanel.Location = new Point(620, 40);
-            EventPanel.Margin = new Padding(25, 3, 3, 3);
-            EventPanel.Name = "EventPanel";
-            tableLayoutPanel1.SetRowSpan(EventPanel, 7);
-            EventPanel.Size = new Size(148, 461);
-            EventPanel.TabIndex = 10;
-            // 
             // label9
             // 
             label9.BackColor = Color.AliceBlue;
@@ -257,6 +249,16 @@
             label9.TabIndex = 11;
             label9.Text = "Events";
             label9.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // eventPanel
+            // 
+            tableLayoutPanel1.SetColumnSpan(eventPanel, 3);
+            eventPanel.Location = new Point(620, 40);
+            eventPanel.Margin = new Padding(25, 3, 3, 3);
+            eventPanel.Name = "eventPanel";
+            tableLayoutPanel1.SetRowSpan(eventPanel, 7);
+            eventPanel.Size = new Size(153, 461);
+            eventPanel.TabIndex = 10;
             // 
             // CalendarView
             // 
@@ -275,7 +277,7 @@
 
         private void AddEventButton_Click(object sender, EventArgs e)
         {
-            // need to move this logic here
+            // I'm bad at sticking to naming conventions
             AddEvent_Click();
         }
 
@@ -295,6 +297,7 @@
         private Panel EventPanel;
         private Label label9;
         private Button addEventButton;
+        private Panel eventPanel;
         private Button createMeetingButton;
     }
 }

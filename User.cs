@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace CalendarProject
 {
@@ -16,7 +14,10 @@ namespace CalendarProject
         public string Username { get; protected set; }
         public string Password { get; protected set; }
         public bool IsManager { get; set; }
-        public List<Event> Calendar { get; set; } // Add Calendar property
+        public List<Event> Calendar { get; set; }
+
+        // list of users for authentication
+        private static List<User> users = new List<User>();
 
         // Constructor
         public User(string firstName, string lastName, string password)
@@ -31,38 +32,68 @@ namespace CalendarProject
             Calendar = new List<Event>();
         }
 
-        // TODO: actual login logic
-        public virtual void Login()
+        // methods
+        public static void AddUser(User user)
         {
-            if (IsManager)
-            {
-                Console.WriteLine($"{Username} logged in as a manager.");
-            }
-            else
-            {
-                Console.WriteLine($"{Username} logged in as a standard user");
-            }
+            users.Add(user);
         }
 
-        // Should these go in Events?
-        public void AddEvent(Event newEvent)
+        public static List<User> GetAllUsers()
         {
-            Calendar.Add(newEvent);
+            return users;
         }
-        // Using LINQ instead of for loops
-        public bool RemoveEvent(int eventId)
+
+        public static User Login(string username, string password)
         {
-            Event eventToRemove = Calendar.FirstOrDefault(e => e.Id == eventId);
-            if (eventToRemove != null)
+            // Find user by username and check password
+            return users.FirstOrDefault(u =>
+                u.Username.Equals(username, StringComparison.OrdinalIgnoreCase) &&
+                u.Password == password);
+        }
+
+        public void Logout()
+        {
+            // clear controls etc
+            Console.WriteLine($"User {Username} logged out");
+        }
+
+        public bool AddEvent(Event newEvent)
+        {
+            if (string.IsNullOrEmpty(newEvent.Owner))
             {
-                return Calendar.Remove(eventToRemove);
+                newEvent.Owner = this.Username;
+            }
+
+            // Check conflicts
+            if (HasEventConflict(newEvent))
+            {
+                return false;
+            }
+
+            Calendar.Add(newEvent);
+            return true;
+        }
+
+        public bool HasEventConflict(Event newEvent)
+        {
+            foreach (var existingEvent in Calendar)
+            {
+                if (existingEvent.Id == newEvent.Id)
+                    continue;
+
+                // check for overlap
+                if (newEvent.StartTime < existingEvent.EndTime &&
+                    newEvent.EndTime > existingEvent.StartTime)
+                {
+                    return true;
+                }
             }
             return false;
         }
 
-        public Event GetEvent(int eventId)
+        public bool DeleteEvent(Event eventToRemove)
         {
-            return Calendar.FirstOrDefault(e => e.Id == eventId);
+            return Calendar.Remove(eventToRemove);
         }
 
         public List<Event> GetEventsByDate(DateTime date)
@@ -70,6 +101,61 @@ namespace CalendarProject
             return Calendar.Where(e =>
                 e.StartTime.Date <= date.Date && e.EndTime.Date >= date.Date
             ).ToList();
+        }
+
+        public List<DateTime> FindAvailableMeetingSlots(DateTime date, TimeSpan duration, List<User> attendees)
+        {
+            if (!IsManager)
+            {
+                return new List<DateTime>();
+            }
+
+            List<DateTime> availableSlots = new List<DateTime>();
+
+            // 9-5 working hours
+            DateTime dayStart = date.Date.AddHours(9);
+            DateTime dayEnd = date.Date.AddHours(17);
+
+            // every hour
+            for (DateTime slot = dayStart; slot.Add(duration) <= dayEnd; slot = slot.AddMinutes(60))
+            {
+                DateTime slotEnd = slot.Add(duration);
+                bool isAvailable = true;
+
+                foreach (var evt in Calendar)
+                {
+                    if (slot < evt.EndTime && slotEnd > evt.StartTime)
+                    {
+                        isAvailable = false;
+                        break;
+                    }
+                }
+
+                if (!isAvailable)
+                    continue;
+
+                foreach (var attendee in attendees)
+                {
+                    foreach (var evt in attendee.Calendar)
+                    {
+                        if (slot < evt.EndTime && slotEnd > evt.StartTime)
+                        {
+                            isAvailable = false;
+                            break;
+                        }
+                    }
+
+                    if (!isAvailable)
+                        break;
+                }
+
+                if (isAvailable)
+                {
+                    availableSlots.Add(slot);
+                }
+            }
+
+            return availableSlots;
         }
     }
 }
